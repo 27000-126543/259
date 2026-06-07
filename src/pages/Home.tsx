@@ -30,24 +30,43 @@ const premiumTrend = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { currentUser, policies, claims, notifications, products, initApp, refreshData, markNotificationRead, isLoading: storeLoading } = useAppStore();
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { currentUser, policies, claims, notifications, products, initApp, refreshData, markNotificationRead, isLoading: storeLoading, isInitialized } = useAppStore();
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const memberInfo = getMemberLevelInfo(currentUser?.memberLevel || 'silver');
   
   useEffect(() => {
+    let mounted = true;
+    
     const loadData = async () => {
-      setIsInitializing(true);
       try {
-        await initApp();
-        await refreshData();
+        if (!isInitialized) {
+          await initApp();
+        }
+        if (currentUser && mounted) {
+          await refreshData();
+        }
+        if (mounted) {
+          setDataLoaded(true);
+        }
       } catch (error) {
         console.error('加载数据失败:', error);
+        if (mounted) {
+          setDataLoaded(true);
+        }
       } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setIsPageLoading(false);
+        }
       }
     };
+    
     loadData();
-  }, []);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [isInitialized, currentUser?.id]);
 
   const handleNotificationClick = async (notificationId: string) => {
     try {
@@ -62,7 +81,7 @@ export default function Home() {
   const unreadNotifications = notifications.filter(n => !n.read);
   const totalCoverage = activePolicies.reduce((sum, p) => sum + p.amount, 0);
   
-  const isLoading = isInitializing || storeLoading;
+  const isLoading = isPageLoading || storeLoading || !dataLoaded;
 
   const quickActions = [
     { icon: Shield, label: '我要投保', path: '/insurance', color: 'bg-blue-500' },

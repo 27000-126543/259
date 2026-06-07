@@ -176,22 +176,39 @@ export default function AdminDashboard() {
     setIsExporting(true);
     try {
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const reportJson = await exportMonthlyReport(currentMonth);
+      
+      let reportJson: string;
+      if (typeof exportMonthlyReport === 'function') {
+        reportJson = await exportMonthlyReport(currentMonth);
+      } else {
+        const store = useAppStore.getState();
+        if (typeof store.exportMonthlyReport === 'function') {
+          reportJson = await store.exportMonthlyReport(currentMonth);
+        } else {
+          throw new Error('报表导出功能暂不可用');
+        }
+      }
+      
       const reportData = {
         ...JSON.parse(reportJson),
         exportTime: new Date().toLocaleString(),
         region: selectedRegion,
         timeRange: selectedTimeRange
       };
-      const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+      
+      const jsonStr = JSON.stringify(reportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `月度运营报表_${currentMonth}.json`;
-      a.click();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `月度运营报表_${currentMonth}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('导出报表失败:', error);
+      alert('导出报表失败：' + (error as Error).message);
     } finally {
       setIsExporting(false);
     }

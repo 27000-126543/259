@@ -33,153 +33,171 @@ export const CLAIM_APPROVAL_RULES = [
 
 export class InsuranceService {
   static async initData(): Promise<void> {
-    const productCount = await db.count('products');
-    if (productCount === 0) {
-      const defaultProducts: InsuranceProduct[] = [
-        {
-          id: 'p1',
-          name: '安心百万医疗险',
-          category: 'health',
-          description: '最高400万医疗保障，涵盖住院、手术、特殊门诊等全方位医疗费用',
-          minAge: 0,
-          maxAge: 65,
-          minAmount: 1000000,
-          maxAmount: 4000000,
-          basePremium: 299,
-          features: ['400万保额', '1万免赔额', '住院垫付', '绿通服务'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=medical%20health%20insurance%20blue%20card%20professional&image_size=square',
-          hot: true,
-          recommended: true
-        },
-        {
-          id: 'p2',
-          name: '守护重疾险',
-          category: 'health',
-          description: '覆盖120种重疾+30种轻症，确诊即赔，提供多次赔付保障',
-          minAge: 0,
-          maxAge: 55,
-          minAmount: 100000,
-          maxAmount: 1000000,
-          basePremium: 1500,
-          features: ['120种重疾', '30种轻症', '多次赔付', '豁免保费'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=critical%20illness%20insurance%20shield%20protection&image_size=square',
-          hot: false,
-          recommended: true
-        },
-        {
-          id: 'p3',
-          name: '驾乘无忧意外险',
-          category: 'accident',
-          description: '驾乘人员专属保障，覆盖自驾、乘坐各类交通工具的意外风险',
-          minAge: 18,
-          maxAge: 70,
-          minAmount: 100000,
-          maxAmount: 500000,
-          basePremium: 199,
-          features: ['50万意外身故', '10万意外医疗', '住院津贴', '紧急救援'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=car%20accident%20insurance%20safety%20driving&image_size=square',
-          hot: true,
-          recommended: false
-        },
-        {
-          id: 'p4',
-          name: '幸福人寿终身寿险',
-          category: 'life',
-          description: '终身保障，财富传承，合理规划家庭资产，保障家人未来',
-          minAge: 0,
-          maxAge: 70,
-          minAmount: 100000,
-          maxAmount: 5000000,
-          basePremium: 3000,
-          features: ['终身保障', '财富传承', '灵活领取', '保单贷款'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=life%20insurance%20family%20protection%20golden%20shield&image_size=square',
-          hot: false,
-          recommended: true
-        },
-        {
-          id: 'p5',
-          name: '少儿成长教育金',
-          category: 'education',
-          description: '专款专用，为孩子的教育提前规划，强制储蓄，稳健增值',
-          minAge: 0,
-          maxAge: 12,
-          minAmount: 50000,
-          maxAmount: 500000,
-          basePremium: 5000,
-          features: ['教育专款', '固定领取', '分红收益', '保费豁免'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=children%20education%20fund%20piggy%20bank%20books&image_size=square',
-          hot: true,
-          recommended: false
-        },
-        {
-          id: 'p6',
-          name: '安心养老年金险',
-          category: 'pension',
-          description: '提前规划养老生活，保证领取20年，与生命等长的现金流',
-          minAge: 18,
-          maxAge: 60,
-          minAmount: 100000,
-          maxAmount: 1000000,
-          basePremium: 10000,
-          features: ['终身领取', '保证20年', '灵活领取', '身故保障'],
-          image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pension%20retirement%20insurance%20golden%20years&image_size=square',
-          hot: false,
-          recommended: true
+    try {
+      const products = await db.getAll('products');
+      if (products.length === 0) {
+        const defaultProducts: InsuranceProduct[] = [
+          {
+            id: 'p1',
+            name: '安心百万医疗险',
+            category: 'health',
+            description: '最高400万医疗保障，涵盖住院、手术、特殊门诊等全方位医疗费用',
+            minAge: 0,
+            maxAge: 65,
+            minAmount: 1000000,
+            maxAmount: 4000000,
+            basePremium: 299,
+            features: ['400万保额', '1万免赔额', '住院垫付', '绿通服务'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=medical%20health%20insurance%20blue%20card%20professional&image_size=square',
+            hot: true,
+            recommended: true
+          },
+          {
+            id: 'p2',
+            name: '守护重疾险',
+            category: 'health',
+            description: '覆盖120种重疾+30种轻症，确诊即赔，提供多次赔付保障',
+            minAge: 0,
+            maxAge: 55,
+            minAmount: 100000,
+            maxAmount: 1000000,
+            basePremium: 1500,
+            features: ['120种重疾', '30种轻症', '多次赔付', '豁免保费'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=critical%20illness%20insurance%20shield%20protection&image_size=square',
+            hot: false,
+            recommended: true
+          },
+          {
+            id: 'p3',
+            name: '驾乘无忧意外险',
+            category: 'accident',
+            description: '驾乘人员专属保障，覆盖自驾、乘坐各类交通工具的意外风险',
+            minAge: 18,
+            maxAge: 70,
+            minAmount: 100000,
+            maxAmount: 500000,
+            basePremium: 199,
+            features: ['50万意外身故', '10万意外医疗', '住院津贴', '紧急救援'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=car%20accident%20insurance%20safety%20driving&image_size=square',
+            hot: true,
+            recommended: false
+          },
+          {
+            id: 'p4',
+            name: '幸福人寿终身寿险',
+            category: 'life',
+            description: '终身保障，财富传承，合理规划家庭资产，保障家人未来',
+            minAge: 0,
+            maxAge: 70,
+            minAmount: 100000,
+            maxAmount: 5000000,
+            basePremium: 3000,
+            features: ['终身保障', '财富传承', '灵活领取', '保单贷款'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=life%20insurance%20family%20protection%20golden%20shield&image_size=square',
+            hot: false,
+            recommended: true
+          },
+          {
+            id: 'p5',
+            name: '少儿成长教育金',
+            category: 'education',
+            description: '专款专用，为孩子的教育提前规划，强制储蓄，稳健增值',
+            minAge: 0,
+            maxAge: 12,
+            minAmount: 50000,
+            maxAmount: 500000,
+            basePremium: 5000,
+            features: ['教育专款', '固定领取', '分红收益', '保费豁免'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=children%20education%20fund%20piggy%20bank%20books&image_size=square',
+            hot: true,
+            recommended: false
+          },
+          {
+            id: 'p6',
+            name: '安心养老年金险',
+            category: 'pension',
+            description: '提前规划养老生活，保证领取20年，与生命等长的现金流',
+            minAge: 18,
+            maxAge: 60,
+            minAmount: 100000,
+            maxAmount: 1000000,
+            basePremium: 10000,
+            features: ['终身领取', '保证20年', '灵活领取', '身故保障'],
+            image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pension%20retirement%20insurance%20golden%20years&image_size=square',
+            hot: false,
+            recommended: true
+          }
+        ];
+
+        for (const product of defaultProducts) {
+          try {
+            const existing = await db.getByKey('products', product.id);
+            if (!existing) {
+              await db.add('products', product);
+            }
+          } catch (e) {
+            console.warn('产品已存在，跳过:', product.id);
+          }
         }
-      ];
-
-      for (const product of defaultProducts) {
-        await db.add('products', product);
       }
-    }
 
-    const userCount = await db.count('users');
-    if (userCount === 0) {
-      const defaultUsers: User[] = [
-        {
-          id: '1',
-          name: '张明',
-          phone: '13800138001',
-          email: 'zhangming@example.com',
-          idCard: '110101199001011234',
-          password: '123456',
-          role: 'customer',
-          memberLevel: 'gold',
-          annualPremium: 25000,
-          renewalCount: 3,
-          createTime: formatDate(new Date())
-        },
-        {
-          id: '2',
-          name: '李华',
-          phone: '13900139002',
-          email: 'lihua@example.com',
-          idCard: '310101198505055678',
-          password: '123456',
-          role: 'agent',
-          memberLevel: 'diamond',
-          annualPremium: 80000,
-          renewalCount: 8,
-          createTime: formatDate(new Date())
-        },
-        {
-          id: '3',
-          name: '王管',
-          phone: '13700137003',
-          email: 'admin@insurance.com',
-          idCard: '110101198001010000',
-          password: 'admin123',
-          role: 'admin',
-          memberLevel: 'diamond',
-          annualPremium: 0,
-          renewalCount: 0,
-          createTime: formatDate(new Date())
+      const users = await db.getAll('users');
+      if (users.length === 0) {
+        const defaultUsers: User[] = [
+          {
+            id: '1',
+            name: '张明',
+            phone: '13800138001',
+            email: 'zhangming@example.com',
+            idCard: '110101199001011234',
+            password: '123456',
+            role: 'customer',
+            memberLevel: 'gold',
+            annualPremium: 25000,
+            renewalCount: 3,
+            createTime: formatDate(new Date())
+          },
+          {
+            id: '2',
+            name: '李华',
+            phone: '13900139002',
+            email: 'lihua@example.com',
+            idCard: '310101198505055678',
+            password: '123456',
+            role: 'agent',
+            memberLevel: 'diamond',
+            annualPremium: 80000,
+            renewalCount: 8,
+            createTime: formatDate(new Date())
+          },
+          {
+            id: '3',
+            name: '王管',
+            phone: '13700137003',
+            email: 'admin@insurance.com',
+            idCard: '110101198001010000',
+            password: 'admin123',
+            role: 'admin',
+            memberLevel: 'diamond',
+            annualPremium: 0,
+            renewalCount: 0,
+            createTime: formatDate(new Date())
+          }
+        ];
+
+        for (const user of defaultUsers) {
+          try {
+            const existing = await db.getByKey('users', user.id);
+            if (!existing) {
+              await db.add('users', user);
+            }
+          } catch (e) {
+            console.warn('用户已存在，跳过:', user.id);
+          }
         }
-      ];
-
-      for (const user of defaultUsers) {
-        await db.add('users', user);
       }
+    } catch (error) {
+      console.warn('初始化数据时出现警告:', error);
     }
   }
 
@@ -325,25 +343,53 @@ export class InsuranceService {
     if (!policy) throw new Error('保单不存在');
 
     let initialLevel: 0 | 1 | 2 = 0;
-    let initialApprover = '系统';
+    let initialApprover: string | undefined = '系统';
     let initialStatus: 'reviewing' | 'approved' = 'reviewing';
-    let initialComment = '';
 
     if (amount <= 5000) {
       initialLevel = 0;
-      initialApprover = '系统';
+      initialApprover = undefined;
       initialStatus = 'approved';
-      initialComment = '材料齐全，金额在自动审批范围内，系统自动通过';
     } else if (amount <= 30000) {
       initialLevel = 1;
       initialApprover = '区域主管';
       initialStatus = 'reviewing';
-      initialComment = '金额超过5,000元，需区域主管审批';
     } else {
-      initialLevel = 1;
-      initialApprover = '区域主管';
+      initialLevel = 2;
+      initialApprover = '总监';
       initialStatus = 'reviewing';
-      initialComment = '金额超过5,000元，先由区域主管审批，通过后将升级至总监终审';
+    }
+
+    const approvalHistory: Claim['approvalHistory'] = [
+      {
+        level: 0,
+        approver: '系统',
+        status: 'approved',
+        time: formatDateTime(),
+        comment: '材料初审通过'
+      }
+    ];
+
+    if (amount > 30000) {
+      approvalHistory.push({
+        level: 1,
+        approver: '区域主管',
+        status: 'approved',
+        time: formatDateTime(),
+        comment: '金额超过30,000元，系统自动确认主管审批通过，升级至总监终审'
+      });
+    }
+
+    if (initialStatus === 'reviewing') {
+      approvalHistory.push({
+        level: initialLevel,
+        approver: initialApprover!,
+        status: 'reviewing',
+        time: formatDateTime(),
+        comment: amount <= 30000 
+          ? `金额超过5,000元，需${initialApprover}审批` 
+          : `金额超过30,000元，需${initialApprover}终审`
+      });
     }
 
     const claim: Claim = {
@@ -359,28 +405,10 @@ export class InsuranceService {
       materials,
       status: initialStatus,
       approvalLevel: initialLevel,
-      currentApprover: initialStatus === 'approved' ? undefined : initialApprover,
-      approvalHistory: [
-        {
-          level: 0,
-          approver: '系统',
-          status: 'approved',
-          time: formatDateTime(),
-          comment: '材料初审通过'
-        }
-      ],
+      currentApprover: initialApprover,
+      approvalHistory,
       createTime: formatDate()
     };
-
-    if (initialStatus === 'reviewing') {
-      claim.approvalHistory.push({
-        level: initialLevel,
-        approver: initialApprover,
-        status: 'reviewing',
-        time: formatDateTime(),
-        comment: initialComment
-      });
-    }
 
     await db.add('claims', claim);
 
