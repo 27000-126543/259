@@ -33,7 +33,7 @@ export default function Register() {
 
   const onSubmit = async (data: RegisterForm) => {
     const { confirmPassword, ...userData } = data;
-    registerUser({
+    await registerUser({
       ...userData,
       role: 'customer'
     });

@@ -27,7 +27,7 @@ export default function Login() {
 
   const onSubmit = async (data: LoginForm) => {
     setError('');
-    const user = login(data.phone, data.password);
+    const user = await login(data.phone, data.password);
     
     if (user) {
       navigate('/');

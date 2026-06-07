@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DollarSign,
   FileCheck,
@@ -38,10 +38,9 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { useAppStore } from '@/store';
 import {
-  mockAdminStats,
   mockProductSalesData,
-  mockPredictionData,
   mockMonthlyReport
 } from '@/mock';
 
@@ -74,16 +73,42 @@ const timeRanges = ['本月', '本季度', '本年度', '近半年', '自定义'
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 export default function AdminDashboard() {
+  const { getAdminStats, exportMonthlyReport, predictNextQuarter } = useAppStore();
+  
   const [selectedRegion, setSelectedRegion] = useState('全部区域');
   const [selectedTimeRange, setSelectedTimeRange] = useState('本月');
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [adminStats, setAdminStats] = useState<any>(null);
+  const [predictionData, setPredictionData] = useState<any[]>([]);
 
-  const stats = [
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [statsData, predictionDataResult] = await Promise.all([
+        getAdminStats(selectedRegion, selectedTimeRange),
+        predictNextQuarter()
+      ]);
+      setAdminStats(statsData);
+      setPredictionData(predictionDataResult);
+    } catch (error) {
+      console.error('获取数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedRegion, selectedTimeRange]);
+
+  const stats = adminStats ? [
     {
       title: '总保费',
-      value: `¥${(mockAdminStats.totalPremium / 10000).toFixed(0)}万`,
+      value: `¥${(adminStats.totalPremium / 10000).toFixed(0)}万`,
       icon: DollarSign,
       color: 'bg-blue-100 text-blue-600',
       trend: '+12.5%',
@@ -91,7 +116,7 @@ export default function AdminDashboard() {
     },
     {
       title: '总理赔数',
-      value: mockAdminStats.totalClaims,
+      value: adminStats.totalClaims,
       icon: FileCheck,
       color: 'bg-green-100 text-green-600',
       trend: '+8.3%',
@@ -99,7 +124,7 @@ export default function AdminDashboard() {
     },
     {
       title: '理赔通过率',
-      value: `${mockAdminStats.claimApprovalRate}%`,
+      value: `${adminStats.claimApprovalRate}%`,
       icon: CheckCircle2,
       color: 'bg-emerald-100 text-emerald-600',
       trend: '+2.1%',
@@ -107,7 +132,7 @@ export default function AdminDashboard() {
     },
     {
       title: '平均理赔时效',
-      value: `${mockAdminStats.avgClaimTime}天`,
+      value: `${adminStats.avgClaimTime}天`,
       icon: Clock,
       color: 'bg-amber-100 text-amber-600',
       trend: '-15.2%',
@@ -115,7 +140,7 @@ export default function AdminDashboard() {
     },
     {
       title: '代理人数',
-      value: mockAdminStats.totalAgents,
+      value: adminStats.totalAgents,
       icon: Users,
       color: 'bg-purple-100 text-purple-600',
       trend: '+5.8%',
@@ -123,7 +148,7 @@ export default function AdminDashboard() {
     },
     {
       title: '客户数',
-      value: mockAdminStats.totalCustomers,
+      value: adminStats.totalCustomers,
       icon: UserCheck,
       color: 'bg-cyan-100 text-cyan-600',
       trend: '+10.2%',
@@ -131,19 +156,21 @@ export default function AdminDashboard() {
     },
     {
       title: '客诉率',
-      value: `${mockAdminStats.complaintRate}%`,
+      value: `${adminStats.complaintRate}%`,
       icon: AlertTriangle,
       color: 'bg-rose-100 text-rose-600',
       trend: '-0.3%',
       trendUp: true
     }
-  ];
+  ] : [];
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsExporting(true);
-    setTimeout(() => {
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const reportJson = await exportMonthlyReport(currentMonth);
       const reportData = {
-        ...mockMonthlyReport,
+        ...JSON.parse(reportJson),
         exportTime: new Date().toLocaleString(),
         region: selectedRegion,
         timeRange: selectedTimeRange
@@ -152,11 +179,14 @@ export default function AdminDashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `月度运营报表_${mockMonthlyReport.month}.json`;
+      a.download = `月度运营报表_${currentMonth}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出报表失败:', error);
+    } finally {
       setIsExporting(false);
-    }, 1500);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -487,7 +517,7 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mockPredictionData.map((item, idx) => (
+            {predictionData.map((item, idx) => (
               <div
                 key={idx}
                 className="p-5 rounded-xl bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100"

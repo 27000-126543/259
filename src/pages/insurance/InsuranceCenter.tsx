@@ -26,12 +26,13 @@ const categories = [
 
 export default function InsuranceCenter() {
   const navigate = useNavigate();
-  const { products } = useAppStore();
+  const { products, createPolicy, autoUnderwrite } = useAppStore();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<InsuranceProduct | null>(null);
   const [showInsureModal, setShowInsureModal] = useState(false);
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     insuredName: '',
     insuredIdCard: '',
@@ -55,10 +56,51 @@ export default function InsuranceCenter() {
     setShowInsureModal(true);
   };
 
-  const handleSubmitInsure = () => {
-    alert('投保成功！已生成电子保单');
-    setShowInsureModal(false);
-    navigate('/policies');
+  const calculateAgeFromIdCard = (idCard: string): number => {
+    if (idCard.length !== 18) return 0;
+    const birthYear = parseInt(idCard.substring(6, 10));
+    const birthMonth = parseInt(idCard.substring(10, 12));
+    const birthDay = parseInt(idCard.substring(12, 14));
+    const today = new Date();
+    const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleSubmitInsure = async () => {
+    if (!selectedProduct) return;
+    
+    setIsSubmitting(true);
+    try {
+      const insuredAge = calculateAgeFromIdCard(formData.insuredIdCard);
+      const underwriteResult = await autoUnderwrite(selectedProduct.id, insuredAge);
+      
+      if (!underwriteResult.passed) {
+        alert(`核保未通过：${underwriteResult.reason || '未知原因'}`);
+        return;
+      }
+      
+      await createPolicy(
+        selectedProduct.id,
+        formData.insuredName,
+        formData.insuredIdCard,
+        formData.beneficiary,
+        formData.amount
+      );
+      
+      alert('投保成功！已生成电子保单');
+      setShowInsureModal(false);
+      navigate('/policies');
+    } catch (error) {
+      console.error('投保失败:', error);
+      alert('投保失败，请稍后重试');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -305,7 +347,9 @@ export default function InsuranceCenter() {
                 {step < 3 ? (
                   <Button onClick={() => setStep(step + 1)}>下一步</Button>
                 ) : (
-                  <Button onClick={handleSubmitInsure}>确认投保</Button>
+                  <Button onClick={handleSubmitInsure} disabled={isSubmitting}>
+                    {isSubmitting ? '提交中...' : '确认投保'}
+                  </Button>
                 )}
               </div>
             </div>

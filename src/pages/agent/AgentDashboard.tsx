@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Users,
   TrendingUp,
@@ -53,9 +53,15 @@ const monthlyTrend = [
 ];
 
 export default function AgentDashboard() {
-  const { teamMembers, commissions, currentUser } = useAppStore();
+  const { teamMembers, commissions, currentUser, createTeamMember, calculateCommission } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('2024-06');
   const [showPayroll, setShowPayroll] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberPhone, setNewMemberPhone] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const payrollRef = useRef<HTMLDivElement>(null);
 
   const currentCommission = commissions.find(c => c.month === selectedMonth);
   const totalTeamPremium = teamMembers.reduce((sum, m) => sum + m.monthlyPremium, 0);
@@ -74,8 +80,78 @@ export default function AgentDashboard() {
     return `¥${amount.toLocaleString()}`;
   };
 
-  const handleGeneratePayroll = () => {
-    setShowPayroll(true);
+  const handleAddMember = async () => {
+    if (!newMemberName.trim() || !newMemberPhone.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      await createTeamMember(newMemberName.trim(), newMemberPhone.trim(), 'member');
+      setShowAddMember(false);
+      setNewMemberName('');
+      setNewMemberPhone('');
+    } catch (error) {
+      console.error('添加成员失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGeneratePayroll = async () => {
+    setIsGenerating(true);
+    try {
+      if (!currentCommission) {
+        await calculateCommission(selectedMonth);
+      }
+      setShowPayroll(true);
+    } catch (error) {
+      console.error('生成工资单失败:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handlePrint = () => {
+    const printContent = payrollRef.current;
+    if (!printContent) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>工资单 - ${selectedMonth}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; }
+            .payroll-container { max-width: 800px; margin: 0 auto; }
+            h1 { font-size: 24px; margin-bottom: 8px; }
+            .subtitle { color: #6b7280; margin-bottom: 24px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+            .label { color: #6b7280; font-size: 14px; }
+            .value { font-weight: 500; }
+            .section { border-top: 1px solid #e5e7eb; padding-top: 24px; margin-bottom: 24px; }
+            .section h4 { margin-bottom: 16px; }
+            .item { display: flex; justify-content: space-between; padding: 8px 0; }
+            .total-box { background: linear-gradient(to right, #eff6ff, #dbeafe); padding: 24px; border-radius: 12px; }
+            .total-label { color: #1d4ed8; }
+            .total-value { font-size: 32px; font-weight: bold; color: #1e3a8a; margin-top: 4px; }
+            @media print {
+              body { padding: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   return (
@@ -86,13 +162,13 @@ export default function AgentDashboard() {
           <p className="text-gray-500 mt-1">管理团队、查看业绩与佣金明细</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)}>
             <UserPlus className="w-4 h-4 mr-1" />
             添加成员
           </Button>
-          <Button size="sm" onClick={handleGeneratePayroll}>
+          <Button size="sm" onClick={handleGeneratePayroll} disabled={isGenerating}>
             <FileText className="w-4 h-4 mr-1" />
-            生成本月工资单
+            {isGenerating ? '生成中...' : '生成本月工资单'}
           </Button>
         </div>
       </div>
@@ -372,6 +448,46 @@ export default function AgentDashboard() {
         </div>
       </div>
 
+      {showAddMember && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="border-b border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900">添加团队成员</h3>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                <input
+                  type="text"
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  placeholder="请输入成员姓名"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">手机号</label>
+                <input
+                  type="tel"
+                  value={newMemberPhone}
+                  onChange={(e) => setNewMemberPhone(e.target.value)}
+                  placeholder="请输入手机号码"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="border-t border-gray-100 flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowAddMember(false)} disabled={isLoading}>
+                取消
+              </Button>
+              <Button onClick={handleAddMember} disabled={isLoading || !newMemberName.trim() || !newMemberPhone.trim()}>
+                {isLoading ? '添加中...' : '确认添加'}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+
       {showPayroll && currentCommission && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -381,7 +497,7 @@ export default function AgentDashboard() {
                 <p className="text-sm text-gray-500 mt-1">{selectedMonth} 月工资明细</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handlePrint}>
                   <Printer className="w-4 h-4 mr-1" />
                   打印
                 </Button>
@@ -391,7 +507,7 @@ export default function AgentDashboard() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6" ref={payrollRef}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">代理人姓名</p>

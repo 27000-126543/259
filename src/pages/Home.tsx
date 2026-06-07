@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Shield, 
@@ -29,8 +30,32 @@ const premiumTrend = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { currentUser, policies, claims, notifications, products } = useAppStore();
+  const { currentUser, policies, claims, notifications, products, initApp, refreshData, markNotificationRead } = useAppStore();
+  const [isLoading, setIsLoading] = useState(true);
   const memberInfo = getMemberLevelInfo(currentUser?.memberLevel || 'silver');
+  
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await initApp();
+        await refreshData();
+      } catch (error) {
+        console.error('加载数据失败:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [initApp, refreshData]);
+
+  const handleNotificationClick = async (notificationId: string) => {
+    try {
+      await markNotificationRead(notificationId);
+    } catch (error) {
+      console.error('标记通知已读失败:', error);
+    }
+  };
   
   const activePolicies = policies.filter(p => p.status === 'active');
   const pendingClaims = claims.filter(c => c.status === 'reviewing' || c.status === 'pending');
@@ -245,7 +270,7 @@ export default function Home() {
                   info: 'bg-blue-500'
                 };
                 return (
-                  <div key={notification.id} className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                  <div key={notification.id} className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => handleNotificationClick(notification.id)}>
                     <div className={cn('w-2 h-2 rounded-full mt-2 flex-shrink-0', typeColors[notification.type])} />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-gray-900 truncate">{notification.title}</p>

@@ -52,7 +52,7 @@ const approvalLevels = [
 ];
 
 export default function ClaimCenter() {
-  const { claims, policies, addClaim, currentUser } = useAppStore();
+  const { claims, policies, createClaim, currentUser } = useAppStore();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -116,40 +116,21 @@ export default function ClaimCenter() {
     return 2;
   };
 
-  const handleSubmitClaim = () => {
+  const handleSubmitClaim = async () => {
     const selectedPolicy = policies.find(p => p.id === formData.policyId);
     if (!selectedPolicy) return;
 
     const amount = parseFloat(formData.amount);
-    const approvalLevel = getApprovalLevel(amount);
 
-    const newClaim: Claim = {
-      id: Date.now().toString(),
-      claimNo: 'CL' + new Date().getFullYear() + String(new Date().getMonth() + 1).padStart(2, '0') + String(claims.length + 1).padStart(4, '0'),
-      policyId: formData.policyId,
-      userId: currentUser?.id || '',
-      policyNo: selectedPolicy.policyNo,
-      amount: amount,
-      accidentType: formData.accidentType,
-      accidentDate: formData.accidentDate,
-      description: formData.description,
-      materials: formData.materials,
-      status: approvalLevel === 0 ? 'approved' : 'reviewing',
-      approvalLevel: approvalLevel as 0 | 1 | 2,
-      currentApprover: approvalLevel === 0 ? '系统自动审批' : approvalLevel === 1 ? '区域主管-待分配' : '总监-待分配',
-      approvalHistory: [
-        {
-          level: 0,
-          approver: '系统',
-          status: approvalLevel === 0 ? 'approved' : 'reviewing',
-          time: new Date().toLocaleString(),
-          comment: approvalLevel === 0 ? '材料齐全，金额在自动审批范围内，自动通过' : `金额${amount > 30000 ? '超过30000元' : '超过5000元'}，需${approvalLevel === 1 ? '区域主管' : '总监'}审批`
-        }
-      ],
-      createTime: new Date().toISOString().split('T')[0]
-    };
+    await createClaim(
+      formData.policyId,
+      amount,
+      formData.accidentType,
+      formData.accidentDate,
+      formData.description,
+      formData.materials
+    );
 
-    addClaim(newClaim);
     setShowCreateModal(false);
     setFormData({
       policyId: '',

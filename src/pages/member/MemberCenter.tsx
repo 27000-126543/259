@@ -155,38 +155,19 @@ const levelThresholds = {
 };
 
 export default function MemberCenter() {
-  const { currentUser } = useAppStore();
+  const { currentUser, getMemberUpgradeProgress } = useAppStore();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
+  const [upgradeProgress, setUpgradeProgress] = useState<{
+    current: string;
+    next: string | null;
+    progress: number;
+    required: string;
+  } | null>(null);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true);
 
   const memberInfo = getMemberLevelInfo(currentUser?.memberLevel || 'silver');
   const currentGrowth = currentUser?.annualPremium || 0;
-
-  const getCurrentLevelThreshold = () => {
-    const level = currentUser?.memberLevel || 'silver';
-    return levelThresholds[level as keyof typeof levelThresholds];
-  };
-
-  const getNextLevel = () => {
-    const level = currentUser?.memberLevel || 'silver';
-    if (level === 'silver') return levelThresholds.gold;
-    if (level === 'gold') return levelThresholds.diamond;
-    return null;
-  };
-
-  const getProgressPercentage = () => {
-    const current = getCurrentLevelThreshold();
-    const next = getNextLevel();
-    if (!next) return 100;
-    const progress = ((currentGrowth - current.min) / (next.min - current.min)) * 100;
-    return Math.min(Math.max(progress, 0), 100);
-  };
-
-  const getGrowthToNextLevel = () => {
-    const next = getNextLevel();
-    if (!next) return 0;
-    return Math.max(0, next.min - currentGrowth);
-  };
 
   const filteredGifts = exclusiveGifts.filter(gift => {
     const level = currentUser?.memberLevel || 'silver';
@@ -194,6 +175,22 @@ export default function MemberCenter() {
     if (gift.requiredLevel === 'gold') return level === 'gold' || level === 'diamond';
     return true;
   });
+
+  useEffect(() => {
+    const fetchUpgradeProgress = async () => {
+      setIsLoadingProgress(true);
+      try {
+        const progress = await getMemberUpgradeProgress();
+        setUpgradeProgress(progress);
+      } catch (error) {
+        console.error('获取升级进度失败:', error);
+      } finally {
+        setIsLoadingProgress(false);
+      }
+    };
+
+    fetchUpgradeProgress();
+  }, [getMemberUpgradeProgress]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -274,9 +271,11 @@ export default function MemberCenter() {
           <div className="mt-8">
             <div className="flex items-center justify-between mb-2">
               <span className="text-white/80 text-sm">升级进度</span>
-              {getNextLevel() ? (
+              {isLoadingProgress ? (
+                <span className="text-white/80 text-sm">加载中...</span>
+              ) : upgradeProgress?.next ? (
                 <span className="text-white/80 text-sm">
-                  距离{getNextLevel()?.label}还需 {getGrowthToNextLevel().toLocaleString()} 成长值
+                  {upgradeProgress.required}
                 </span>
               ) : (
                 <span className="text-white/80 text-sm">已达最高等级</span>
@@ -285,11 +284,11 @@ export default function MemberCenter() {
             <div className="relative h-4 bg-white/20 rounded-full overflow-hidden">
               <div
                 className="absolute inset-y-0 left-0 bg-white rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${getProgressPercentage()}%` }}
+                style={{ width: `${isLoadingProgress ? 0 : upgradeProgress?.progress || 0}%` }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xs font-medium text-white drop-shadow">
-                  {getProgressPercentage().toFixed(1)}%
+                  {isLoadingProgress ? '加载中...' : `${(upgradeProgress?.progress || 0).toFixed(1)}%`}
                 </span>
               </div>
             </div>

@@ -30,13 +30,17 @@ export default function Profile() {
   const memberInfo = getMemberLevelInfo(currentUser?.memberLevel || 'silver');
   const activePolicies = policies.filter(p => p.userId === currentUser?.id && p.status === 'active');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (currentUser) {
-      updateUser({
-        ...currentUser,
-        ...formData
-      });
-      setIsEditing(false);
+      try {
+        await updateUser({
+          ...currentUser,
+          ...formData
+        });
+        setIsEditing(false);
+      } catch (error) {
+        console.error('更新用户信息失败:', error);
+      }
     }
   };
 

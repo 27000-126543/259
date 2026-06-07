@@ -68,34 +68,33 @@ export default function HealthCenter() {
     };
   }) || [];
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     setUploading(true);
-    setTimeout(() => {
-      const newReport = {
-        id: `hr${Date.now()}`,
-        userId: currentUser?.id || '',
-        reportDate: new Date().toISOString().split('T')[0],
-        score: Math.floor(Math.random() * 30) + 70,
-        riskLevel: 'medium' as RiskLevel,
-        indicators: [
-          { name: '血压', value: 128, unit: 'mmHg', normalRange: '90-140', isAbnormal: false },
-          { name: '血糖', value: 5.9, unit: 'mmol/L', normalRange: '3.9-6.1', isAbnormal: false },
-          { name: '胆固醇', value: 5.2, unit: 'mmol/L', normalRange: '<5.2', isAbnormal: false },
-          { name: 'BMI', value: 24.8, unit: 'kg/m²', normalRange: '18.5-23.9', isAbnormal: true },
-          { name: '心率', value: 75, unit: 'bpm', normalRange: '60-100', isAbnormal: false }
-        ],
-        suggestions: [
-          '建议保持规律的作息时间，每天保证7-8小时睡眠',
-          '增加蔬菜水果摄入，减少高油高盐食物',
-          '每周进行至少150分钟的中等强度有氧运动',
-          '建议每3个月复查一次BMI指标',
-          '保持良好心态，避免过度焦虑和压力'
-        ]
-      };
-      addHealthReport(newReport);
-      setUploading(false);
-      setShowUploadModal(false);
-    }, 2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const newReport = {
+      id: `hr${Date.now()}`,
+      userId: currentUser?.id || '',
+      reportDate: new Date().toISOString().split('T')[0],
+      score: Math.floor(Math.random() * 30) + 70,
+      riskLevel: 'medium' as RiskLevel,
+      indicators: [
+        { name: '血压', value: 128, unit: 'mmHg', normalRange: '90-140', isAbnormal: false },
+        { name: '血糖', value: 5.9, unit: 'mmol/L', normalRange: '3.9-6.1', isAbnormal: false },
+        { name: '胆固醇', value: 5.2, unit: 'mmol/L', normalRange: '<5.2', isAbnormal: false },
+        { name: 'BMI', value: 24.8, unit: 'kg/m²', normalRange: '18.5-23.9', isAbnormal: true },
+        { name: '心率', value: 75, unit: 'bpm', normalRange: '60-100', isAbnormal: false }
+      ],
+      suggestions: [
+        '建议保持规律的作息时间，每天保证7-8小时睡眠',
+        '增加蔬菜水果摄入，减少高油高盐食物',
+        '每周进行至少150分钟的中等强度有氧运动',
+        '建议每3个月复查一次BMI指标',
+        '保持良好心态，避免过度焦虑和压力'
+      ]
+    };
+    await addHealthReport(newReport);
+    setUploading(false);
+    setShowUploadModal(false);
   };
 
   return (
