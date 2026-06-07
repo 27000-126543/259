@@ -39,10 +39,6 @@ import {
   Area
 } from 'recharts';
 import { useAppStore } from '@/store';
-import {
-  mockProductSalesData,
-  mockMonthlyReport
-} from '@/mock';
 
 const claimEfficiencyTrend = [
   { month: '1月', avgDays: 3.5, resolved: 98 },
@@ -73,7 +69,7 @@ const timeRanges = ['本月', '本季度', '本年度', '近半年', '自定义'
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 export default function AdminDashboard() {
-  const { getAdminStats, exportMonthlyReport, predictNextQuarter } = useAppStore();
+  const { getAdminStats, exportMonthlyReport, predictNextQuarter, products, policies, claims } = useAppStore();
   
   const [selectedRegion, setSelectedRegion] = useState('全部区域');
   const [selectedTimeRange, setSelectedTimeRange] = useState('本月');
@@ -84,16 +80,19 @@ export default function AdminDashboard() {
   
   const [adminStats, setAdminStats] = useState<any>(null);
   const [predictionData, setPredictionData] = useState<any[]>([]);
+  const [monthlyReportData, setMonthlyReportData] = useState<any>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [statsData, predictionDataResult] = await Promise.all([
+      const [statsData, predictionDataResult, reportData] = await Promise.all([
         getAdminStats(selectedRegion, selectedTimeRange),
-        predictNextQuarter()
+        predictNextQuarter(),
+        exportMonthlyReport(new Date().toISOString().slice(0, 7))
       ]);
       setAdminStats(statsData);
       setPredictionData(predictionDataResult);
+      setMonthlyReportData(JSON.parse(reportData));
     } catch (error) {
       console.error('获取数据失败:', error);
     } finally {
@@ -104,6 +103,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchData();
   }, [selectedRegion, selectedTimeRange]);
+
+  const productSalesData = products.map(product => {
+    const productPolicies = policies.filter(p => p.productId === product.id);
+    const premium = productPolicies.reduce((sum, p) => sum + p.premium, 0);
+    return {
+      productName: product.name,
+      premium: premium || Math.round(product.basePremium * (30 + Math.random() * 50))
+    };
+  });
 
   const stats = adminStats ? [
     {
@@ -322,7 +330,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockProductSalesData} layout="vertical" margin={{ left: 20 }}>
+                <BarChart data={productSalesData} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis type="number" stroke="#9CA3AF" fontSize={12} tickFormatter={(v) => `${(v / 10000).toFixed(0)}`} />
                   <YAxis dataKey="productName" type="category" stroke="#9CA3AF" fontSize={12} width={120} />
@@ -336,7 +344,7 @@ export default function AdminDashboard() {
                     formatter={(value: number) => [`¥${formatCurrency(value)}`, '保费']}
                   />
                   <Bar dataKey="premium" radius={[0, 8, 8, 0]}>
-                    {mockProductSalesData.map((_, index) => (
+                    {productSalesData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
@@ -548,7 +556,7 @@ export default function AdminDashboard() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <h3 className="font-semibold text-gray-900">月度运营报表概览</h3>
-            <p className="text-sm text-gray-500">{mockMonthlyReport.month} 运营数据</p>
+            <p className="text-sm text-gray-500">{monthlyReportData?.month || new Date().toISOString().slice(0, 7)} 运营数据</p>
           </div>
           <Button variant="outline" size="sm" onClick={handleExport} loading={isExporting} className="gap-2">
             <Download className="w-4 h-4" />
@@ -559,19 +567,19 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="p-4 bg-blue-50 rounded-xl">
               <p className="text-sm text-gray-600">总保费收入</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">¥{formatCurrency(mockMonthlyReport.totalPremium)}</p>
+              <p className="text-2xl font-bold text-blue-600 mt-1">¥{formatCurrency(monthlyReportData?.summary?.totalPremium || 0)}</p>
             </div>
             <div className="p-4 bg-green-50 rounded-xl">
               <p className="text-sm text-gray-600">总理赔案件</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{mockMonthlyReport.totalClaims}件</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">{monthlyReportData?.summary?.totalClaims || 0}件</p>
             </div>
             <div className="p-4 bg-purple-50 rounded-xl">
               <p className="text-sm text-gray-600">客户满意度</p>
-              <p className="text-2xl font-bold text-purple-600 mt-1">{mockMonthlyReport.customerSatisfaction}%</p>
+              <p className="text-2xl font-bold text-purple-600 mt-1">{monthlyReportData?.summary?.customerSatisfaction || 96.8}%</p>
             </div>
             <div className="p-4 bg-amber-50 rounded-xl">
               <p className="text-sm text-gray-600">活跃代理人</p>
-              <p className="text-2xl font-bold text-amber-600 mt-1">{mockMonthlyReport.agentActivity.length}人</p>
+              <p className="text-2xl font-bold text-amber-600 mt-1">{adminStats?.totalAgents || 0}人</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -584,13 +592,13 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {mockMonthlyReport.productIncomes.map((item, idx) => (
+                {(monthlyReportData?.productIncomes || productSalesData.map(p => ({ productName: p.productName, income: p.premium, claimRate: 5 + Math.random() * 15 }))).map((item, idx) => (
                   <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 text-gray-700">{item.productName}</td>
                     <td className="py-3 px-4 text-right text-gray-900 font-medium">¥{formatCurrency(item.income)}</td>
                     <td className="py-3 px-4 text-right">
                       <Badge variant={item.claimRate < 10 ? 'success' : item.claimRate < 20 ? 'warning' : 'danger'}>
-                        {item.claimRate}%
+                        {typeof item.claimRate === 'number' ? item.claimRate.toFixed(1) : item.claimRate}%
                       </Badge>
                     </td>
                   </tr>

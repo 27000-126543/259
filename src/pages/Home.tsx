@@ -30,24 +30,24 @@ const premiumTrend = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { currentUser, policies, claims, notifications, products, initApp, refreshData, markNotificationRead } = useAppStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const { currentUser, policies, claims, notifications, products, initApp, refreshData, markNotificationRead, isLoading: storeLoading } = useAppStore();
+  const [isInitializing, setIsInitializing] = useState(true);
   const memberInfo = getMemberLevelInfo(currentUser?.memberLevel || 'silver');
   
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
+      setIsInitializing(true);
       try {
         await initApp();
         await refreshData();
       } catch (error) {
         console.error('加载数据失败:', error);
       } finally {
-        setIsLoading(false);
+        setIsInitializing(false);
       }
     };
     loadData();
-  }, [initApp, refreshData]);
+  }, []);
 
   const handleNotificationClick = async (notificationId: string) => {
     try {
@@ -61,6 +61,8 @@ export default function Home() {
   const pendingClaims = claims.filter(c => c.status === 'reviewing' || c.status === 'pending');
   const unreadNotifications = notifications.filter(n => !n.read);
   const totalCoverage = activePolicies.reduce((sum, p) => sum + p.amount, 0);
+  
+  const isLoading = isInitializing || storeLoading;
 
   const quickActions = [
     { icon: Shield, label: '我要投保', path: '/insurance', color: 'bg-blue-500' },
@@ -70,6 +72,29 @@ export default function Home() {
   ];
 
   const recommendedProducts = products.filter(p => p.recommended).slice(0, 3);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl h-40 animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded-2xl h-32 animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl h-80 animate-pulse" />
+            <div className="bg-white rounded-2xl h-80 animate-pulse" />
+          </div>
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl h-64 animate-pulse" />
+            <div className="bg-white rounded-2xl h-64 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -87,7 +112,7 @@ export default function Home() {
                   {memberInfo.label}
                 </span>
                 <span className="text-blue-100 text-sm">
-                  年缴保费 ¥{currentUser?.annualPremium.toLocaleString()}
+                  年缴保费 ¥{(currentUser?.annualPremium || 0).toLocaleString()}
                 </span>
               </div>
             </div>

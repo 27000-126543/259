@@ -324,7 +324,27 @@ export class InsuranceService {
     const policy = await db.getByKey('policies', policyId);
     if (!policy) throw new Error('保单不存在');
 
-    const approvalRule = CLAIM_APPROVAL_RULES.find(r => amount <= r.maxAmount)!;
+    let initialLevel: 0 | 1 | 2 = 0;
+    let initialApprover = '系统';
+    let initialStatus: 'reviewing' | 'approved' = 'reviewing';
+    let initialComment = '';
+
+    if (amount <= 5000) {
+      initialLevel = 0;
+      initialApprover = '系统';
+      initialStatus = 'approved';
+      initialComment = '材料齐全，金额在自动审批范围内，系统自动通过';
+    } else if (amount <= 30000) {
+      initialLevel = 1;
+      initialApprover = '区域主管';
+      initialStatus = 'reviewing';
+      initialComment = '金额超过5,000元，需区域主管审批';
+    } else {
+      initialLevel = 1;
+      initialApprover = '区域主管';
+      initialStatus = 'reviewing';
+      initialComment = '金额超过5,000元，先由区域主管审批，通过后将升级至总监终审';
+    }
 
     const claim: Claim = {
       id: generateId('cl_'),
@@ -337,31 +357,41 @@ export class InsuranceService {
       accidentDate,
       description,
       materials,
-      status: approvalRule.autoApprove ? 'approved' : 'reviewing',
-      approvalLevel: approvalRule.level,
-      currentApprover: approvalRule.approver,
+      status: initialStatus,
+      approvalLevel: initialLevel,
+      currentApprover: initialStatus === 'approved' ? undefined : initialApprover,
       approvalHistory: [
         {
           level: 0,
           approver: '系统',
-          status: approvalRule.autoApprove ? 'approved' : 'reviewing',
+          status: 'approved',
           time: formatDateTime(),
-          comment: approvalRule.autoApprove 
-            ? '材料齐全，金额在自动审批范围内' 
-            : `金额超过${CLAIM_APPROVAL_RULES[approvalRule.level - 1]?.maxAmount || 0}元，需${approvalRule.approver}审批`
+          comment: '材料初审通过'
         }
       ],
       createTime: formatDate()
     };
 
+    if (initialStatus === 'reviewing') {
+      claim.approvalHistory.push({
+        level: initialLevel,
+        approver: initialApprover,
+        status: 'reviewing',
+        time: formatDateTime(),
+        comment: initialComment
+      });
+    }
+
     await db.add('claims', claim);
 
-    if (approvalRule.autoApprove) {
+    if (initialStatus === 'approved') {
       setTimeout(async () => {
+        const paidClaim = { ...claim, status: 'paid' as const };
+        await db.update('claims', paidClaim);
         await this.createNotification(userId, '理赔到账通知', `您的理赔申请（${claim.claimNo}）已赔付到账，金额：¥${amount.toLocaleString()}`, 'success');
       }, 2000);
     } else {
-      await this.createNotification(userId, '理赔申请提交成功', `您的理赔申请（${claim.claimNo}）已提交，当前由${approvalRule.approver}审批中`, 'info');
+      await this.createNotification(userId, '理赔申请提交成功', `您的理赔申请（${claim.claimNo}）已提交，当前由${initialApprover}审批中`, 'info');
     }
 
     return claim;
@@ -371,21 +401,16 @@ export class InsuranceService {
     const claim = await db.getByKey('claims', claimId);
     if (!claim) return null;
 
-    const nextLevel = claim.approvalLevel + 1;
-    const nextRule = CLAIM_APPROVAL_RULES.find(r => r.level === nextLevel);
+    const currentLevel = claim.approvalLevel;
+    const amount = claim.amount;
 
     const updatedClaim: Claim = {
       ...claim,
-      approvalHistory: [
-        ...claim.approvalHistory,
-        {
-          level: claim.approvalLevel,
-          approver,
-          status: approved ? 'approved' : 'rejected',
-          time: formatDateTime(),
-          comment
-        }
-      ]
+      approvalHistory: claim.approvalHistory.map(h => 
+        h.level === currentLevel && h.status === 'reviewing'
+          ? { ...h, status: approved ? 'approved' : 'rejected', approver, comment, time: formatDateTime() }
+          : h
+      )
     };
 
     if (!approved) {
@@ -396,10 +421,28 @@ export class InsuranceService {
       return updatedClaim;
     }
 
-    if (nextRule && !nextRule.autoApprove) {
-      updatedClaim.approvalLevel = nextLevel as 0 | 1 | 2;
-      updatedClaim.currentApprover = nextRule.approver;
+    let shouldUpgrade = false;
+    let nextLevel: 0 | 1 | 2 = currentLevel;
+    let nextApprover = '';
+
+    if (currentLevel === 1 && amount > 30000) {
+      shouldUpgrade = true;
+      nextLevel = 2;
+      nextApprover = '总监';
+    }
+
+    if (shouldUpgrade) {
+      updatedClaim.approvalLevel = nextLevel;
+      updatedClaim.currentApprover = nextApprover;
       updatedClaim.status = 'reviewing';
+      updatedClaim.approvalHistory.push({
+        level: nextLevel,
+        approver: nextApprover,
+        status: 'reviewing',
+        time: formatDateTime(),
+        comment: `金额超过30,000元，升级至${nextApprover}终审`
+      });
+      await this.createNotification(claim.userId, '理赔审批升级', `您的理赔申请（${claim.claimNo}）已通过区域主管审批，因金额超过30,000元，已升级至总监终审`, 'info');
     } else {
       updatedClaim.status = 'approved';
       updatedClaim.currentApprover = undefined;
